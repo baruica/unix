@@ -1,0 +1,327 @@
+#!/bin/ksh
+##  Fichier     : CR_quotidien_ATOM.ksh
+##  Date        : Le 03.11.14
+##  Auteur      : Jean-Marc RIANDIERE
+##  Utilisateur : root
+#~  Description : CR ATOM
+#~  Usage       :
+#~    Option    : h : Affichage de l'aide
+#~    Parametre : param1 : ...
+#~              : param2 : ...
+##  Modifie le  : aa.mm.jj par ...
+##  Modifie le  : 06.03.28 par M.RICOIS
+##  Description : ajout de la surveillance du PRA ATOM et Informations Sauvegarde EVAGD
+##                Uniformisation du compte rendu
+## 		  - 05.10.24 ajout Mise à jour de la table OPB_SERVER_INFO sur clay1ato
+##		  - 06.01.12 modification de la partie sauvegarde avec ajout de legende
+##		  - 06.03.28 Ajout du rapport de sauvegarde savoraoff de la base Oracle.
+##		  - 06.10.06 Suppression des fichiers prestataires obsolètes du tableau
+#------------------------------------------------------------------------------
+
+########################## DECLARATION DES FONCTIONS ##########################
+
+Usage()		## Affiche le format d'appel
+{
+	grep "^#~" $1 | cut -c 3-
+}
+
+############################### DEBUT DU SCRIPT ###############################
+
+# Teste la presence des parametres et des options
+while getopts h name
+do
+	case $name in
+		h)			# Affichage de l'aide
+			Usage $0
+			exit 1
+		;;
+		?)
+			Usage $0 >&2
+			exit 1
+		;;
+	esac
+done
+
+# OPTIND pointe sur le 1er argument qui n'est pas une valeur option
+# Si vous tapez la ligne suivante:
+# shift $(($OPTIND-1)) ;
+# Les arguments restants sont contenus dans $*
+
+# Initialisation des variables normalisées si ce n'est pas déjà fait
+if [ ${NRM_DEF:-non} = non ]
+then
+	. /exploit/proc/variables
+fi
+
+# Commencez votre script ici...
+# Déclaration des variables
+
+ORACLE_ATMPROD=/home/oracle/admin/ATM_PROD
+ORACLE_ATMINF=/home/oracle/admin/ATM_INF
+
+{
+	# ENTETE HTML
+	print "<html><body>"
+	print "<pre><font size=\"2\" face=\"sans-serif\">"			# "
+	print "<b>ATOM - Point journalier du $(date +'%y.%m.%d')<br></b>"
+	print "<b><font color=\"#3300FF\">  		                            VIE DE L'APPLICATION </font></b>"
+	print "<br>"
+	print "<b> Eléménts à signaler: </b><br>"
+	print "		<i>Indisponibilité de l'application (faits marquants en cours)</i>: Cf. mail"
+	print "		<i>Incidents signalés par le HHN</i> 	          	              : R.A.S."
+	print "		<i>Incidents ou travaux remarquables des dernières 24h</i>        : R.A.S."
+	print "		<i>Sauvegardes exceptionnelles</i>       	                      : R.A.S."
+	print " "
+	print "<b> Spécificité de l'application : </b>R.A.S<br>"
+	print " "
+
+	# ETAT DES SAUVEGARDES CPDISK DES BASES ORACLE ATM_PROD ET ATM_INF
+
+	print "----------------------------------------------------------------"
+	print "<b>Rapport de la sauvegarde CPDISK de la base ATM_PROD :</b>"
+	print " "
+
+	# récuperation du répertoire de la log de sauvegarde à une date j-1 et récuperation de la log
+
+	cd $ORACLE_ATMPROD/log
+	REP=$(ls -ltr | grep savOff | tail -1 | awk '{ print $9 }')
+	cd  $REP
+	cat savOffATM_PROD*.log
+	print " "
+	print "\n----------------------------------------------------------------\n"
+	print "<b>Rapport de la sauvegarde CPDISK de la base ATM_INF :</b>"
+	print " "
+	cd $ORACLE_ATMINF/log
+	REP=$(ls -ltr | grep savOff | tail -1 | awk '{ print $9 }')
+	cd  $REP
+	cat savOffATM_INF*.log
+	print "\n----------------------------------------------------------------\n"
+	print "</font></pre>"
+
+	# ETAT DU PRA ATOM
+	print "<pre><font size=\"2\">"								# "
+	print "<b>Etat de la synchronisation du PRA :</b>"
+	print "<pre>"
+	cat /tmp/verifPRA.txt | grep -v "synchronisation"
+	print "\n-----------------------------------------------\n"
+	print "</font></pre>"
+	# Mise à jour TABLE OPB_SERVER_INFO sur CLAY1ATO
+	# Cette vérification ne tourne que le lundi à 17h00
+	print "<pre><font size=\"2\">"								# "
+	print "<b>Mise à jour de la table OPB_SERVER_INFO sur CLAY1ATO</b>"
+	print "Partie à renseigner uniquement le LUNDI MATIN"
+	print "inserer le contenu du mail reçu le samedi matin..."
+
+	date | grep Mon 1>/dev/null
+	if [ $? -eq 0 ]
+	then
+		ls -l /home/checkpra/MAJ_table_powermart.log >/dev/null 2>&1
+		if [ $? -eq 0 ]
+		then
+			cat /home/checkpra/MAJ_table_powermart.log
+		fi
+	fi
+
+	print "\n-----------------------------------------------\n"
+	print "</font></pre>"
+
+	# TEST DU MONTAGE NFS :
+	nfsnas=$(mount | grep pcygdnas01 | wc -l)
+	if [ $nfsnas -ne 1 ]
+	then
+		print "<B><FONT SIZE=\"3\" COLOR=\"#FF0000\">Montage NFS sur le serveur NAS incorrecte</FONT></B>"
+	fi
+
+	print "<br>"
+
+	# TEST DE LA PRESENCE DES PROCESSUS
+
+	/usr/bin/ps -eF"%a" | awk '{print $1 $2}' > /tmp/CR_atom1.tmp
+	cat /tmp/CR_atom1.tmp | awk '
+	BEGIN
+	{
+		ATM1="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM2="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM3="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM4="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM5="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM6="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		ATM7="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		CFT=0
+	}
+	{
+		if ($0 ~ "CFTMAIN")	{CFT+=1}
+		if ($0 ~ "CFTTPRO")	{CFT+=1}
+		if ($0 ~ "CFTTCOM")	{CFT+=1}
+		if ($0 ~ "CFTLOG")	{CFT+=1}
+		if ($0 ~ "CFTTCPS")	{CFT+=1}
+		if ($0 ~ "pmserver") {HOME_PMART+=1}
+		if ($0 ~ "atm_exp_pfp_vrt")		{ATM1="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_exp_pfp_pre")		{ATM2="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_imp_pap_1")		{ATM3="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_imp_vapecd_1")	{ATM4="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_exp_chase_1")		{ATM5="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_imp_sdmg_1")		{ATM6="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+		if ($0 ~ "atm_imp_prest_1")		{ATM7="<td align=center><B>X</B></td><td>&nbsp;</td>"}
+	}
+	END
+	{
+		print "<pre> <font size=\"2\">"
+		print " <b>Process presents :</b>"
+		print "</font> </pre>"
+		print "<table border=0 align=left>"
+		print "<tr><td>"
+		print "<table width=320 border=1 align=left cellspacing=0 cellpading=0>"
+		print "<tr align=center><td>&nbsp;</td><td>Ok</td><td>NOk</td></tr>"
+		if (CFT >= 5)
+		{
+			print "<tr><td align=left>Presence processus :<B>CFT</B></td><td align=center><B>X</B></td><td>&nbsp;</td></tr>"
+		}
+		if (CFT < 5)
+		{
+			print "<tr><td align=left>Presence processus :<B>CFT</B></td><td>&nbsp;</td><td align=center><B>X</B></td></tr>"
+		}
+		if (HOME_PMART >= 1)
+		{
+			print "<tr><td align=left>Presence processus :<B>PowerMart</B></td><td align=center><B>X</B></td><td>&nbsp;</td></tr>"
+		}
+		if (HOME_PMART < 1)
+		{
+			print "<tr><td align=left>Presence processus :<B>PowerMart</B></td><td>&nbsp;</td><td align=center><B>X</B></td></tr>"
+		}
+		print "<tr><td align=left>Presence processus :<B>atm_exp_pfp_vrt</B></td>",ATM1,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_exp_pfp_pre</B></td>",ATM2,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_exp_chase_1</B></td>",ATM3,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_imp_pap_1</B></td>",ATM4,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_imp_vapecd_1</B></td>",ATM5,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_imp_sdmg_1</B></td>",ATM6,"</tr>"
+		print "<tr><td align=left>Presence processus :<B>atm_imp_prest_1</B></td>",ATM7,"</tr>"
+		print "</table>"
+		print "</td></tr>"
+	}
+	'
+
+	# TEST DES INSTANCES ORACLE
+	print "<tr><td>&nbsp;</td></tr>"
+	print "<tr><td>"
+	print "<table width=320 border=1 align=left cellspacing=0 cellpading=0>"
+	print "<tr><td>&nbsp;</td><td>OK</td><td>NOK</td></tr>"
+
+	# VERIFICATION INSTANCE ATM_PROD
+	su - oracle -c /exploit/proc/oracle/test_sid.adm TEST_PROD >/dev/NULL 2>&1
+	if [ $? -eq 0 ]
+	then
+		print "<tr><td align=left>Disponibilité instance : <B>ATM_PROD</B></td><td align=center><B>X</B></td><td align=center>&nbsp;</td></tr>"
+	else
+		print "<tr><td align=left>Disponibilité instance : <B>ATM_PROD</B></td><td align=center>&nbsp;</td><td align=center><B>X</B></td></tr>"
+	fi
+
+	# VERIFICATION INSTANCE ATM_INF
+	su - oracle -c /exploit/proc/oracle/test_sid.adm ATM_INF >/dev/NULL 2>&1
+	if [ $? -eq 0 ]
+	then
+		print "<tr><td align=left>Disponibilité instance : <B>ATM_INF</B></td><td align=center><B>X</B></td><td>&nbsp;</td></tr>"
+	else
+		print "<tr><td align=left>Disponibilité instance : <B>ATM_INF</B></td><td>&nbsp;</td><td align=center><B>X</B></td></tr>"
+	fi
+
+	print "</table>"
+	print "</tr></td>"
+	print "<tr><td>"
+
+
+	# TEST DE LA PRESENCE DES FICHIER *.TIP
+	WDATE="$(date +'%y%m%d')"
+
+	#if [ -f ~atom/interfaces/powermart/PREST/*.TIP ]
+	#then
+		ls -l ~atom/interfaces/powermart/PREST/*.TIP 2>/dev/null > /tmp/CR_atom.tmp
+	#fi
+	ls -l ~atom/interfaces/powermart/PREST/$WDATE/*.TIP 2>/dev/null >> /tmp/CR_atom.tmp
+
+	cat /tmp/CR_atom.tmp | awk '
+	BEGIN
+	{
+		FIC1="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC2="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC3="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC5="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC6="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC7="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC10="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC12="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC13="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC14="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC15="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC16="<td>&nbsp;</td><td align=center><B>X</B></td>"
+		FIC17="<td>&nbsp;</td><td align=center><B>X</B></td>"
+	}
+	{
+		if ($0 ~ "FCBDF.TIP")	{FIC1="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCBREN.TIP")	{FIC2="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCBREP.TIP")	{FIC3="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCEPB1.TIP")	{FIC5="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCELSG.TIP")	{FIC6="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCCTO.TIP")	{FIC7="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCSGP.TIP")	{FIC10="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCPRO.TIP")	{FIC14="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCTPR.TIP")	{FIC15="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCPGD.TIP")	{FIC17="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCTTSG.TIP")	{FIC18="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCFLX.TIP")	{FIC19="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+		if ($0 ~ "FCEPB2.TIP")	{FIC20="<td align=center><B>X</B></td><td align=center>&nbsp;</td>"}
+	}
+	END
+	{
+		print "<table border=0 align=left>"
+		print "<tr><td>"
+		print "<table width=320 border=1 align=left cellspacing=0 cellpading=0>"
+		print "<tr align=center><td align=center>Presence dans le répertoire : <br><b>~atom/interfaces/powermart/PREST</b></td><td>Ok</td><td>NOk</td></tr>"
+		print "<tr><td align=center>FCBDF.TIP</td>",FIC1,"</tr>"
+		print "<tr><td align=center>FCBREN.TIP</td>",FIC2,"</tr>"
+		print "<tr><td align=center>FCBREP.TIP</td>",FIC3,"</tr>"
+		print "<tr><td align=center>FCEPB1.TIP</td>",FIC5,"</tr>"
+		print "<tr><td align=center>FCELSG.TIP</td>",FIC6,"</tr>"
+		print "<tr><td align=center>FCCTO.TIP</td>",FIC7,"</tr>"
+		print "<tr><td align=center>FCSGP.TIP</td>",FIC10,"</tr>"
+		print "<tr><td align=center>FCTPR.TIP</td>",FIC15,"</tr>"
+		print "<tr><td align=center>FCPRO.TIP</td>",FIC14,"</tr>"
+		print "<tr><td align=center>FCPGD.TIP</td>",FIC17,"</tr>"
+		print "<tr><td align=center>FCTTSG.TIP</td>",FIC18,"</tr>"
+		print "<tr><td align=center>FCFLX.TIP</td>",FIC19,"</tr>"
+		print "<tr><td align=center>FCEPB2.TIP</td>",FIC20,"</tr>"
+		print "</table>"
+		print "</table>"
+		print "</td></tr>"
+	}
+	'
+
+	print "</td></tr>"
+	print "<tr><td>"
+	print "<br>"
+	print "<i> Présence de fichiers locks sur la console Informatica : OK/NOK</i>"
+
+	#print "
+	#<pre><b><font color=\"#E29FC8\" size=\"1\" face=\"Verdana, Arial, Helvetica, sans-serif\">
+	#__________________________________________________
+	# EDS
+	# Nanterre
+	# Mail : DIT-BEX-INFG-LOT2
+	# _________________________________________________
+	#</font></b></pre>"
+	print "</td></tr>"
+	print "</table>"
+	print "</body></html>"
+} 1>/tmp/atom.html 2>&1
+#------------------------------------------------------------------------------
+
+WDATE="$(date +'20%y_%m_%d')"
+# Transfert du fichier HTML sur le serveur NT
+ftp -n 10.200.73.150 << EOF
+user amadeus &amadeus2006&
+cd fichiers_externes
+put /tmp/atom.html CR_ATOM_$WDATE.html
+quit
+EOF
+
+#------------------------------------------------------------------------------

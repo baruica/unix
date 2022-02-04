@@ -1,0 +1,30 @@
+/		C'est le répertoire racine, celui qui contient tout le reste du système et notamment les répertoires ci-dessous.
+
+/home	Ce répertoire contient les répertoires personnels de chaque utilisateur.
+		C'est donc ici que vous naviguerez le plus souvent.
+		Le dossier de chaque utilisateur contient ses données personnelles ainsi que les fichiers de configuration de certains programmes (souvent dans des dossiers cachés).
+
+/root	Le répertoire personnel du super-utilisateur (appelé root).
+
+/bin	Contient toutes les commandes de base utilisables par l'utilisateur ou les programmes.
+
+/boot	Contient le noyau Linux et les fichiers nécessaires au démarrage.
+
+/dev	Le répertoire dédié à la communication entre et avec les périphériques.
+
+/etc	Contient les principaux fichiers de configurations du système.
+
+/lib	Contient les bibliothèques partagées et les modules du noyau.
+
+/mnt	Contient les points de montage des périphériques.
+/media
+
+/opt	Pour l'installation de logiciels supplémentaires.
+
+/proc	Contient une image du système et des processus actifs.
+
+/tmp	Contient les fichiers temporaires.
+
+/usr	Contient les commandes, bibliothèques, programmes...directement accessibles à tous les utilisateurs. La structure est identique à celle de /.
+
+/var	Contient des données fréquemment réécrites liées au fonctionnement de la machine.

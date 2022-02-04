@@ -1,0 +1,46 @@
+﻿/				fichiers non partagés (notamment dans /etc)
+/bin			commandes publiques (souvent un lien symbolique vers /usr/bin)
+/dev			fichiers spéciaux
+/etc			répertoire administratif contenant des fichiers de configuration
+/home			répertoire créé par défaut pour créer les répertoires de connexion des utilisateurs
+/lib			librairies, programmes des compilateurs, commandes divreses (souvent un lien symbolique vers /usr/lib)
+/sbin			commandes ou scripts administratifs utilisés au démarrage du système
+/tmp			répertoire public de travail pour fichiers temporaires
+/usr			contient d'autres répertoires correspondant aux diverses composantes du système en terme de commandes et d'exécutables
+/var			contient des répertoires correspondant aux aspects variables d'un système (files d'attente, fichiers de statistiques)
+
+
+4 catégories de fichiers
+
+fichiers non partagés															/	(notamment dans /etc)
+fichiers partageables entre machines du même "hardware" (exécutables)			/usr
+fichiers partageables par toute machine											/usr/share
+fichiers de travail du système, fichiers comptes rendus, files d'attente etc	/var
+
+
+/etc/fstab
+/etc/vfstab		filesystem mount table files
+
+/etc/hosts		hosts file
+
+/etc/rc0		subdirectory trees containing system startup and shutdown shell scripts
+/etc/rc1
+...
+/etc/rc6		maybe more
+
+
+Fichiers de description des comptes
+
+Toutes les versions d'UNIX comportent 2 fichiers de base décrivant les utilisateurs connus du système.
+
+/etc/passwd		contient la description des comptes, 1 compte par ligne, 7 champs par ligne séparés de :
+				nom du compte : mot de passe : UID : GID : commentaire : répertoire de connexion : shell de connexion (sh si vide)
+				le mot de passe est codé dans un fichier sécurisé mais ce champ subsiste à titre de compatibilité
+
+/etc/group		contient la description des groupes, 1 groupe par ligne, 4 champs par ligne séparés par :
+				nom du group : champ obsolète : GID : liste des logins pour lesquels ce groupe est un groupe secondaire
+
+
+Lors de la connexion, le shell exécute 2 fichiers d'initialisation (dans l'ordre):
+	/etc/profile	géré par l'administrateur
+	.profile		situé dans le répertoire de l'utilisateur

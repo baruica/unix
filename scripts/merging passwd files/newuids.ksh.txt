@@ -1,0 +1,55 @@
+#!/bin/ksh
+
+# newuids --- print one or more unused UIDs
+#
+# Usage:
+#		newuids [-c N]
+#		-c N        print N unused UIDs
+
+PASSWD=${PASSWD:-/etc/passwd}
+TMPFILE=/tmp/uidlist$$
+
+trap 'rm -f $TMPFILE' EXIT HUP TERM				# clean up on exit or signal
+
+count=1											# how many UIDs to print
+
+# parse arguments, let ksh issue diagnostics and exit if need be
+while getopts "c#" opt
+do
+	case $opt in
+	c)
+		count=$OPTARG
+	;;
+	esac
+done
+
+awk -F: '{ print $3 }' $PASSWD |				# generate list of UIDs
+	sort -n -u > $TMPFILE						# sort numerically, remove duplicates
+
+set -A uidlist $(< $TMPFILE)					# save in indexed array
+
+totalids=${#uidlist[*]}							# total number of UIDs
+
+
+# loop over IDs, finding non-contiguous ones
+for ((i = 2; i <= totalids; i++))
+do
+	if ((uidlist[i-1] + 1 != uidlist[i]))
+	then
+		for ((j = uidlist[i-1] + 1; j < uidlist[i]; j++))
+		do
+			print $j
+			if ((--count == 0))
+			then
+				break 2							# break out of the outermost enclosing for-loop
+			fi
+		done
+	fi
+done
+
+# The first thing to notice about this loop is the heavy use it makes of the Korn shell's ((...)) construct.
+# In particular, variables inside ((...)) don't need dollar signs to get their values, and it is possible to use numeric expressions for subscripts.
+# (The latter is always true; it's not limited to just being inside ((...)).)
+# The expression --count decrements count before testing its value.
+# If count starts out at 1, it becomes 0.
+# With higher initial values, it counts down until it becomes 0.
